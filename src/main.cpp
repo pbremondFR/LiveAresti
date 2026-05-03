@@ -121,7 +121,7 @@ int main()
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE);
 
 	// Create the window and OpenGL context
-	InitWindow(1000, 1000, "Hello Raylib");
+	InitWindow(1000, 1000, "LiveAresti");
 	
 	rlImGuiSetup(true);
 	apply_imgui_app_style();
@@ -138,6 +138,8 @@ int main()
 	
 	test_output_target = LoadRenderTexture(600, 600);
 	
+	Shader maskShader = LoadShader(nullptr, "border_mask.frag");
+	
 	bool should_close = false;
 	bool show_demo_window = false;
 	
@@ -145,13 +147,16 @@ int main()
 	while (!WindowShouldClose() && !should_close)		// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
 		BeginTextureMode(test_output_target);
+		BeginShaderMode(maskShader);		
 		ClearBackground(BLANK);
 		DrawTexturePro(test_texture,
 			{ 0.0f, 0.0f, (float)test_texture.width, (float)test_texture.height },
 			{ 600.0f, 600.0f, (float)test_texture.width, (float)test_texture.height },
 			{600, 600},
 			static_cast<float>(GetTime() * 100),
+			// 45,
 			WHITE);
+		EndShaderMode();
 		EndTextureMode();
 		
 		Image output_image_ndi = LoadImageFromTexture(test_output_target.texture);
@@ -161,7 +166,9 @@ int main()
 		NDI_video_frame.xres = test_output_target.texture.width;
 		NDI_video_frame.yres = test_output_target.texture.height;
     
-		NDI_video_frame.FourCC = NDIlib_FourCC_type_RGBA; 
+		NDI_video_frame.frame_rate_N = 60000;
+		NDI_video_frame.frame_rate_D = 1000;
+		NDI_video_frame.FourCC = NDIlib_FourCC_type_RGBA;
     
 		NDI_video_frame.p_data = static_cast<uint8_t*>(output_image_ndi.data);
 		NDI_video_frame.line_stride_in_bytes = test_output_target.texture.width * 4;
@@ -169,7 +176,7 @@ int main()
 		// Optionnel mais recommandé : NDI gère le framerate
 		// En appelant cette fonction, NDI va "bloquer" légèrement si vous envoyez
 		// trop vite, afin de maintenir un flux fluide (ex: 60fps constants).
-		// NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+		NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
 		UnloadImage(output_image_ndi);
 		
 		// drawing
