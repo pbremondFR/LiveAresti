@@ -15,29 +15,10 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include <Processing.NDI.Lib.h>
 #include <string>
 
+LiveArestiState g_state = {};
+
 Texture test_texture;
 RenderTexture2D test_output_target;
-NDIlib_send_instance_t pNDI_send = nullptr;
-
-bool InitNDI()
-{
-	if (!NDIlib_initialize()) {
-		return false;
-	}
-
-	NDIlib_send_create_t NDI_send_create_desc;
-	NDI_send_create_desc.p_ndi_name = "LiveAresti";
-	NDI_send_create_desc.p_groups = nullptr;
-	NDI_send_create_desc.clock_video = true;
-	NDI_send_create_desc.clock_audio = false;
-
-	pNDI_send = NDIlib_send_create(&NDI_send_create_desc);
-	if (!pNDI_send) {
-		return false;
-	}
-
-	return true;
-}
 
 void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 {
@@ -52,6 +33,33 @@ void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 			ImGui::Separator();
 			if (ImGui::MenuItem("Quit"))
 				should_close = true;
+			ImGui::EndMenu();
+		}
+		
+		if (ImGui::BeginMenu("NDI"))
+		{
+			bool broadcasting = g_state.NDI_send_ptr != nullptr;
+			if (ImGui::MenuItem("Set up NDI source...", nullptr, false, !broadcasting))
+			{
+				g_state.request_open_ndi_modal = true;
+			}
+			if (ImGui::MenuItem("Broadcast", nullptr, broadcasting, true))
+			{
+				if (!broadcasting)
+				{
+					NDIlib_send_create_t NDI_send_create_desc;
+					NDI_send_create_desc.p_ndi_name = g_state.NDI_name.c_str();
+					NDI_send_create_desc.p_groups = g_state.NDI_group.c_str();
+					NDI_send_create_desc.clock_video = true;
+					NDI_send_create_desc.clock_audio = false;
+					g_state.NDI_send_ptr = NDIlib_send_create(&NDI_send_create_desc);
+				}
+				else
+				{
+					NDIlib_send_destroy(g_state.NDI_send_ptr);
+					g_state.NDI_send_ptr = nullptr;
+				}
+			}
 			ImGui::EndMenu();
 		}
  
@@ -82,12 +90,13 @@ void imgui_main_app_window()
 	
 	ImGui::Begin("main", nullptr, flags);
 	
-	ImVec2 side_panel_size = {
+	NDI_modal();
+	
+	const ImVec2 side_panel_size = {
 		viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x*2 - ImGui::GetStyle().ItemSpacing.y,
 		600
 	};
 	{
-		// ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
 		ImGui::SetNextWindowPos({ImGui::GetStyle().WindowPadding.x, 30});
 		ImGui::BeginChild("side_panel", side_panel_size, ImGuiChildFlags_Borders);
@@ -145,7 +154,7 @@ int main()
 	
 	rlImGuiSetup(true);
 	apply_imgui_app_style();
-	if (!InitNDI())
+	if (!NDIlib_initialize())
 	{
 		assert(false);
 	}
@@ -196,7 +205,7 @@ int main()
 		// Optionnel mais recommandé : NDI gère le framerate
 		// En appelant cette fonction, NDI va "bloquer" légèrement si vous envoyez
 		// trop vite, afin de maintenir un flux fluide (ex: 60fps constants).
-		NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+		NDIlib_send_send_video_v2(g_state.NDI_send_ptr, &NDI_video_frame);
 		UnloadImage(output_image_ndi);
 		
 		// drawing
@@ -223,8 +232,8 @@ int main()
 	
 	rlImGuiShutdown();
 	
-	if (pNDI_send)
-		NDIlib_send_destroy(pNDI_send);
+	if (g_state.NDI_send_ptr)
+		NDIlib_send_destroy(g_state.NDI_send_ptr);
 	NDIlib_destroy();
 
 	// destroy the window and cleanup the OpenGL context
