@@ -54,6 +54,15 @@ set(RLIMGUI_SOURCES
     ${rlimgui_SOURCE_DIR}/rlImGui.cpp
 )
 
+set(NDI_DIR $ENV{NDI_SDK_DIR})
+if(NOT NDI_DIR)
+    message(FATAL_ERROR "NDI SDK is required: https://ndi.video/for-developers/ndi-sdk/download/")
+endif()
+
+set(NDI_INCLUDE_DIR "${NDI_DIR}/Include")
+set(NDI_LIB_DIR "${NDI_DIR}/Lib/x64")
+set(NDI_BIN_DIR "${NDI_DIR}/Bin/x64")
+
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/embed_roboto_medium.cpp
@@ -66,7 +75,15 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${imgui_SOURCE_DIR}
     ${rlimgui_SOURCE_DIR}
     ${raylib_extras_c_SOURCE_DIR}
+    ${NDI_INCLUDE_DIR}
     include
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_directories(${PROJECT_NAME} PRIVATE "${NDI_LIB_DIR}")
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib Processing.NDI.Lib.x64)
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${NDI_BIN_DIR}/Processing.NDI.Lib.x64.dll"
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)

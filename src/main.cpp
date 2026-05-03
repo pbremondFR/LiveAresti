@@ -12,9 +12,30 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include "imgui.h"
 #include "LiveAresti.hpp"
 #include "path_utils/resource_dir.h"	// utility header for SearchAndSetResourceDir
+#include <Processing.NDI.Lib.h>
 
 Texture test_texture;
 RenderTexture2D test_output_target;
+NDIlib_send_instance_t pNDI_send = nullptr;
+
+bool InitNDI() {
+	if (!NDIlib_initialize()) {
+		return false;
+	}
+
+	NDIlib_send_create_t NDI_send_create_desc;
+	NDI_send_create_desc.p_ndi_name = "LiveAresti"; // Le nom vu par la régie
+	NDI_send_create_desc.p_groups = nullptr;
+	NDI_send_create_desc.clock_video = true; // NDI gérera la cadence de la vidéo
+	NDI_send_create_desc.clock_audio = false;
+
+	pNDI_send = NDIlib_send_create(&NDI_send_create_desc);
+	if (!pNDI_send) {
+		return false;
+	}
+
+	return true;
+}
 
 void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 {
@@ -83,6 +104,10 @@ int main()
 	
 	rlImGuiSetup(true);
 	apply_imgui_app_style();
+	if (!InitNDI())
+	{
+		assert(false);
+	}
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
 	SearchAndSetResourceDir("resources");
@@ -108,6 +133,24 @@ int main()
 			WHITE);
 		EndTextureMode();
 		
+		Image output_image_ndi = LoadImageFromTexture(test_output_target.texture);
+		ImageFormat(&output_image_ndi, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+		ImageFlipVertical(&output_image_ndi);
+		NDIlib_video_frame_v2_t NDI_video_frame;
+		NDI_video_frame.xres = test_output_target.texture.width;
+		NDI_video_frame.yres = test_output_target.texture.height;
+    
+		NDI_video_frame.FourCC = NDIlib_FourCC_type_RGBA; 
+    
+		NDI_video_frame.p_data = static_cast<uint8_t*>(output_image_ndi.data);
+		NDI_video_frame.line_stride_in_bytes = test_output_target.texture.width * 4; // 4 octets par pixel (R, G, B, A)
+
+		// Optionnel mais recommandé : NDI gère le framerate
+		// En appelant cette fonction, NDI va "bloquer" légèrement si vous envoyez
+		// trop vite, afin de maintenir un flux fluide (ex: 60fps constants).
+		NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+		UnloadImage(output_image_ndi);
+		
 		// drawing
 		BeginDrawing();
 
@@ -131,6 +174,10 @@ int main()
 	UnloadRenderTexture(test_output_target);
 	
 	rlImGuiShutdown();
+	
+	if (pNDI_send)
+		NDIlib_send_destroy(pNDI_send);
+	NDIlib_destroy();
 
 	// destroy the window and cleanup the OpenGL context
 	CloseWindow();
