@@ -82,14 +82,34 @@ void imgui_main_app_window()
 	
 	ImGui::Begin("main", nullptr, flags);
 	
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
-	ImGui::SetNextWindowPos({(viewport->WorkSize.x - 600.0f) / 2, 30});
-	ImGui::BeginChild("preview", {600, 600});
-	rlImGuiImageRenderTexture(&test_output_target);
-	ImGui::EndChild();
-	ImGui::PopStyleColor();
+	ImVec2 side_panel_size = {
+		viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x*2 - ImGui::GetStyle().ItemSpacing.y,
+		600
+	};
+	{
+		// ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
+		ImGui::SetNextWindowPos({ImGui::GetStyle().WindowPadding.x, 30});
+		ImGui::BeginChild("side_panel", side_panel_size, ImGuiChildFlags_Borders);
+		ImGui::Text("Side panel");
+		ImGui::Text("Pilot: Mika BRAGEOT");
+		ImGui::Text("Aircraft type: EXTRA330SC");
+		ImGui::Text("Aircraft reg: F-HMKF");
+		ImGui::Text("Category: Unlimited");
+		ImGui::EndChild();
+		ImGui::PopStyleColor();
+	}
+	{
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
+		ImGui::SetNextWindowPos({viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x, 30});
+		ImGui::BeginChild("preview", {600, 600});
+		rlImGuiImageRenderTexture(&test_output_target);
+		ImGui::EndChild();
+		ImGui::PopStyleColor();
+	}
 	
 
+	// ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
 	ImGui::BeginChild("main_controls", {0, 0}, ImGuiChildFlags_Borders);
 	ImGui::Text("Hello, world!");
