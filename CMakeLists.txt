@@ -57,6 +57,7 @@ set(RLIMGUI_SOURCES
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/embed_roboto_medium.cpp
+    src/imgui_style.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
 )

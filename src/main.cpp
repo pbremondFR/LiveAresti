@@ -10,7 +10,6 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include "raylib.h"
 #include "rlImGui.h"
 #include "imgui.h"
-#include "imgui_style.hpp"
 #include "LiveAresti.hpp"
 #include "path_utils/resource_dir.h"	// utility header for SearchAndSetResourceDir
 
@@ -62,8 +61,8 @@ void imgui_main_app_window()
 	ImGui::PopStyleColor();
 	
 
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 64, 64, 255));
-	ImGui::BeginChild("main_controls");
+	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
+	ImGui::BeginChild("main_controls", {0, 0}, ImGuiChildFlags_Borders);
 	ImGui::Text("Hello, world!");
 	ImGui::Text("This is where the controls should go.");
 	ImGui::Button("← FORM B");
@@ -83,13 +82,7 @@ int main()
 	InitWindow(1000, 1000, "Hello Raylib");
 	
 	rlImGuiSetup(true);
-	apply_app_style();
-
-	auto& io = ImGui::GetIO();
-	io.IniFilename = nullptr;
-	io.Fonts->Clear();
-	io.Fonts->AddFontFromMemoryCompressedBase85TTF(Roboto_Medium_compressed_data_base85, 17);
-	io.Fonts->Build();
+	apply_imgui_app_style();
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
 	SearchAndSetResourceDir("resources");
@@ -106,8 +99,7 @@ int main()
 	while (!WindowShouldClose() && !should_close)		// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
 		BeginTextureMode(test_output_target);
-		ClearBackground(BLANK); // Transparence totale
-		// DrawTextureEx(test_texture, {0, 0}, static_cast<float>(GetTime() * 10), 1.0f, WHITE);
+		ClearBackground(BLANK);
 		DrawTexturePro(test_texture,
 			{ 0.0f, 0.0f, (float)test_texture.width, (float)test_texture.height },
 			{ 300.0f, 300.0f, (float)test_texture.width, (float)test_texture.height },
@@ -122,11 +114,6 @@ int main()
 		// Setup the back buffer for drawing (clear color and depth buffers)
 		ClearBackground(GRAY);
 
-		// draw some text using the default font
-		DrawText("Hello Raylib from C++",  200, 200, 20, WHITE);
-
-		// draw our texture to the screen
-		// DrawTexture(wabbit, 200, 300, WHITE);
 		rlImGuiBegin();
 		imgui_menu_bar(should_close, show_demo_window);
 		imgui_main_app_window();
