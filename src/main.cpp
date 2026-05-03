@@ -19,11 +19,13 @@ LiveArestiState g_state = {};
 
 Texture test_texture;
 RenderTexture2D test_output_target;
+float menu_bar_height = 0.0f;
 
 void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 {
 	if (ImGui::BeginMainMenuBar())
 	{
+		menu_bar_height = ImGui::GetWindowSize().y;
 		if (ImGui::BeginMenu("File"))
 		{
 			if (ImGui::MenuItem("Load .seq"))
@@ -92,25 +94,68 @@ void imgui_main_app_window()
 	
 	NDI_modal();
 	
-	const ImVec2 side_panel_size = {
-		viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x*2 - ImGui::GetStyle().ItemSpacing.y,
-		600
-	};
+	const float origin_y_pos = menu_bar_height + ImGui::GetStyle().WindowPadding.y;
+	const float side_panel_width = viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x*2 - ImGui::GetStyle().ItemSpacing.y; 
+	const ImVec2 NDI_panel_size = {side_panel_width, 70};
+	const ImVec2 side_panel_size = {side_panel_width, 600 - NDI_panel_size.y - ImGui::GetStyle().ItemSpacing.y};
 	{
-		ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
-		ImGui::SetNextWindowPos({ImGui::GetStyle().WindowPadding.x, 30});
-		ImGui::BeginChild("side_panel", side_panel_size, ImGuiChildFlags_Borders);
-		ImGui::Text("Side panel");
-		ImGui::Text("Pilot: Mika BRAGEOT");
-		ImGui::Text("Aircraft type: EXTRA330SC");
-		ImGui::Text("Aircraft reg: F-HMKF");
-		ImGui::Text("Category: Unlimited");
+		ImU32 background_color = g_state.NDI_send_ptr == nullptr
+			? IM_COL32(127, 0, 0, 255)
+			: IM_COL32(0, 127, 0, 255);
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, background_color);
+		ImGui::SetNextWindowPos({ImGui::GetStyle().WindowPadding.x, origin_y_pos});
+		ImGui::BeginChild("ndi_panel", NDI_panel_size, ImGuiChildFlags_Borders);
+        static ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit;
+		if (ImGui::BeginTable("ndi_props", 2, table_flags))
+		{
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
+			
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Name");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("%s", g_state.NDI_name.c_str());
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Group");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("%s", g_state.NDI_group.c_str());
+			
+			ImGui::EndTable();
+		}
 		ImGui::EndChild();
 		ImGui::PopStyleColor();
 	}
 	{
+		ImGui::SetNextWindowPos({
+			ImGui::GetStyle().WindowPadding.x,
+			origin_y_pos + NDI_panel_size.y + ImGui::GetStyle().ItemSpacing.y
+		});
+		ImGui::BeginChild("side_panel", side_panel_size, ImGuiChildFlags_Borders);
+		ImGui::Text("ELITE_BRAGEOT_MIKA.seq");
+		static ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_BordersOuter;
+		if (ImGui::BeginTable("ndi_props", 2, table_flags))
+		{
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
+			
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Pilot");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("Mika BRAGEOT");
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Aircraft type");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("EXTRA330SC");
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Aircraft reg");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("F-HMKF");
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0); ImGui::Text("Category");
+			ImGui::TableSetColumnIndex(1); ImGui::Text("Unlimited");
+			
+			ImGui::EndTable();
+		}
+		ImGui::EndChild();
+	}
+	{
 		ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
-		ImGui::SetNextWindowPos({viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x, 30});
+		ImGui::SetNextWindowPos({viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x, origin_y_pos});
 		ImGui::BeginChild("preview", {600, 600});
 		rlImGuiImageRenderTexture(&test_output_target);
 		ImGui::EndChild();
@@ -118,8 +163,6 @@ void imgui_main_app_window()
 	}
 	
 
-	// ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
-	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(15, 15, 15, 255));
 	ImGui::BeginChild("main_controls", {0, 0}, ImGuiChildFlags_Borders);
 	ImGui::Text("Hello, world!");
 	ImGui::Text("This is where the controls should go.");
@@ -139,7 +182,6 @@ void imgui_main_app_window()
 		ImGui::EndChild();
 	}
 	ImGui::EndChild();
-	ImGui::PopStyleColor();
 
 	ImGui::End();
 }

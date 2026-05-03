@@ -7,6 +7,7 @@ static ImGuiStyle get_imgui_style()
 	ImGui::StyleColorsDark(&style);
 	
 	style.Colors[ImGuiCol_WindowBg] = ImColor{30, 30, 30, 255};
+	style.Colors[ImGuiCol_ChildBg] = ImColor{15, 15, 15, 255};
 	style.Colors[ImGuiCol_MenuBarBg] = ImColor{60, 60, 60, 255};
 	
 	style.FrameRounding = 3;
