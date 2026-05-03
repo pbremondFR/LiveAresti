@@ -32,6 +32,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(rlimgui)
 
+#  raylib-extras/extras-c
+FetchContent_Declare(
+        raylib_extras_c
+        GIT_REPOSITORY https://github.com/raylib-extras/extras-c.git
+        GIT_TAG main
+)
+FetchContent_MakeAvailable(raylib_extras_c)
+
 # ImGui sources
 set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -55,6 +63,7 @@ add_executable(${PROJECT_NAME}
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${imgui_SOURCE_DIR}
     ${rlimgui_SOURCE_DIR}
+    ${raylib_extras_c_SOURCE_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)

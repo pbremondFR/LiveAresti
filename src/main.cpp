@@ -11,7 +11,10 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include "rlImGui.h"
 #include "imgui.h"
 #include "imgui_style.hpp"
-// #include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+#include "path_utils/resource_dir.h"	// utility header for SearchAndSetResourceDir
+
+Texture test_texture;
+RenderTexture2D test_output_target;
 
 void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 {
@@ -53,10 +56,10 @@ void imgui_main_app_window()
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
 	ImGui::SetNextWindowPos({(ImGui::GetContentRegionAvail().x - 600.0f) / 2, 30});
 	ImGui::BeginChild("preview", {600, 600});
-	ImGui::Text("Hello, world!");
-	ImGui::Text("This is where the live preview should go.");
+	rlImGuiImageRenderTexture(&test_output_target);
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
+	
 
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(0, 64, 64, 255));
 	ImGui::BeginChild("main_controls");
@@ -80,12 +83,15 @@ int main()
 	
 	rlImGuiSetup(true);
 	apply_app_style();
+	ImGui::GetIO().IniFilename = nullptr;
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	// SearchAndSetResourceDir("resources");
+	SearchAndSetResourceDir("resources");
 
 	// Load a texture from the resources directory
-	// Texture wabbit = LoadTexture("wabbit_alpha.png");
+	test_texture = LoadTexture("MIKA BRAGEOT_Free Known_FormB_Fig01.png");
+	
+	test_output_target = LoadRenderTexture(600, 600);
 	
 	bool should_close = false;
 	bool show_demo_window = false;
@@ -93,6 +99,17 @@ int main()
 	// game loop
 	while (!WindowShouldClose() && !should_close)		// run the loop until the user presses ESCAPE or presses the Close button on the window
 	{
+		BeginTextureMode(test_output_target);
+		ClearBackground(BLANK); // Transparence totale
+		// DrawTextureEx(test_texture, {0, 0}, static_cast<float>(GetTime() * 10), 1.0f, WHITE);
+		DrawTexturePro(test_texture,
+			{ 0.0f, 0.0f, (float)test_texture.width, (float)test_texture.height },
+			{ 300.0f, 300.0f, (float)test_texture.width, (float)test_texture.height },
+			{300, 300},
+			static_cast<float>(GetTime() * 30),
+			WHITE);
+		EndTextureMode();
+		
 		// drawing
 		BeginDrawing();
 
@@ -117,7 +134,8 @@ int main()
 
 	// cleanup
 	// unload our texture so it can be cleaned up
-	// UnloadTexture(wabbit);
+	UnloadTexture(test_texture);
+	UnloadRenderTexture(test_output_target);
 	
 	rlImGuiShutdown();
 
