@@ -11,22 +11,24 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include "rlImGui.h"
 #include "imgui.h"
 #include "LiveAresti.hpp"
-#include "path_utils/resource_dir.h"	// utility header for SearchAndSetResourceDir
+#include "path_utils/resource_dir.h"
 #include <Processing.NDI.Lib.h>
+#include <string>
 
 Texture test_texture;
 RenderTexture2D test_output_target;
 NDIlib_send_instance_t pNDI_send = nullptr;
 
-bool InitNDI() {
+bool InitNDI()
+{
 	if (!NDIlib_initialize()) {
 		return false;
 	}
 
 	NDIlib_send_create_t NDI_send_create_desc;
-	NDI_send_create_desc.p_ndi_name = "LiveAresti"; // Le nom vu par la régie
+	NDI_send_create_desc.p_ndi_name = "LiveAresti";
 	NDI_send_create_desc.p_groups = nullptr;
-	NDI_send_create_desc.clock_video = true; // NDI gérera la cadence de la vidéo
+	NDI_send_create_desc.clock_video = true;
 	NDI_send_create_desc.clock_audio = false;
 
 	pNDI_send = NDIlib_send_create(&NDI_send_create_desc);
@@ -39,18 +41,24 @@ bool InitNDI() {
 
 void imgui_menu_bar(bool &should_close, bool &show_demo_window)
 {
-	if (ImGui::BeginMainMenuBar()) {
-		if (ImGui::BeginMenu("File")) {
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Load .seq"))
+				;
+			if (ImGui::MenuItem("Load raw sequence"))
+				;
+			ImGui::Separator();
 			if (ImGui::MenuItem("Quit"))
 				should_close = true;
- 
 			ImGui::EndMenu();
 		}
  
-		if (ImGui::BeginMenu("Window")) {
+		if (ImGui::BeginMenu("Window"))
+		{
 			if (ImGui::MenuItem("Demo Window", nullptr, show_demo_window))
 				show_demo_window = !show_demo_window;
- 
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -75,7 +83,7 @@ void imgui_main_app_window()
 	ImGui::Begin("main", nullptr, flags);
 	
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, IM_COL32(127, 127, 127, 255));
-	ImGui::SetNextWindowPos({(ImGui::GetContentRegionAvail().x - 600.0f) / 2, 30});
+	ImGui::SetNextWindowPos({(viewport->WorkSize.x - 600.0f) / 2, 30});
 	ImGui::BeginChild("preview", {600, 600});
 	rlImGuiImageRenderTexture(&test_output_target);
 	ImGui::EndChild();
@@ -86,8 +94,21 @@ void imgui_main_app_window()
 	ImGui::BeginChild("main_controls", {0, 0}, ImGuiChildFlags_Borders);
 	ImGui::Text("Hello, world!");
 	ImGui::Text("This is where the controls should go.");
-	ImGui::Button("← FORM B");
-	ImGui::Button("FORM C →");
+	ImGui::Button("<< FORM B"); ImGui::SameLine(); ImGui::Button("BREAK");
+	ImGui::Button("<< PREV"); ImGui::SameLine(); ImGui::Button("NEXT >>");
+	{
+        ImGui::BeginChild("scrolling", {0, 0}, ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_HorizontalScrollbar);
+		for (int i = 0; i < 99; ++i)
+		{
+			// ImGui::PushID(i); ImGui::Button("<< FORM B"); ImGui::SameLine(); ImGui::PopID();
+			ImGui::PushID(i);
+			ImGui::ImageButton(std::to_string(i).c_str(), ImTextureID(test_texture.id), {100, 100});
+			// rlImGuiImageRect(&test_texture, 100, 100, Rectangle{ 0,0, float(test_texture.width), float(test_texture.height) });
+			ImGui::SameLine();
+			ImGui::PopID();
+		}
+		ImGui::EndChild();
+	}
 	ImGui::EndChild();
 	ImGui::PopStyleColor();
 
@@ -127,9 +148,9 @@ int main()
 		ClearBackground(BLANK);
 		DrawTexturePro(test_texture,
 			{ 0.0f, 0.0f, (float)test_texture.width, (float)test_texture.height },
-			{ 300.0f, 300.0f, (float)test_texture.width, (float)test_texture.height },
-			{300, 300},
-			static_cast<float>(GetTime() * 30),
+			{ 600.0f, 600.0f, (float)test_texture.width, (float)test_texture.height },
+			{600, 600},
+			static_cast<float>(GetTime() * 100),
 			WHITE);
 		EndTextureMode();
 		
@@ -143,12 +164,12 @@ int main()
 		NDI_video_frame.FourCC = NDIlib_FourCC_type_RGBA; 
     
 		NDI_video_frame.p_data = static_cast<uint8_t*>(output_image_ndi.data);
-		NDI_video_frame.line_stride_in_bytes = test_output_target.texture.width * 4; // 4 octets par pixel (R, G, B, A)
+		NDI_video_frame.line_stride_in_bytes = test_output_target.texture.width * 4;
 
 		// Optionnel mais recommandé : NDI gère le framerate
 		// En appelant cette fonction, NDI va "bloquer" légèrement si vous envoyez
 		// trop vite, afin de maintenir un flux fluide (ex: 60fps constants).
-		NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
+		// NDIlib_send_send_video_v2(pNDI_send, &NDI_video_frame);
 		UnloadImage(output_image_ndi);
 		
 		// drawing
