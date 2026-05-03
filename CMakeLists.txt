@@ -68,6 +68,11 @@ add_executable(${PROJECT_NAME}
     src/embed_roboto_medium.cpp
     src/imgui_style.cpp
     src/ndi_modal.cpp
+    src/ndi_panel.cpp
+    src/side_panel.cpp
+    src/main_panel.cpp
+    src/menu_bar.cpp
+    src/ndi_export.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
 )

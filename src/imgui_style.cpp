@@ -16,6 +16,7 @@ static ImGuiStyle get_imgui_style()
 	style.PopupRounding = 3;
 	//style.WindowRounding = 4;
 	style.ChildRounding = 6;
+	style.WindowBorderSize = 0;
 
 	style.ScaleAllSizes(1.5f);
 	
