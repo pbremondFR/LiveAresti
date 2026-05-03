@@ -56,6 +56,7 @@ set(RLIMGUI_SOURCES
 
 add_executable(${PROJECT_NAME}
     src/main.cpp
+    src/embed_roboto_medium.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
 )
@@ -64,6 +65,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${imgui_SOURCE_DIR}
     ${rlimgui_SOURCE_DIR}
     ${raylib_extras_c_SOURCE_DIR}
+    include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib)

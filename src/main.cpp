@@ -11,6 +11,7 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include "rlImGui.h"
 #include "imgui.h"
 #include "imgui_style.hpp"
+#include "LiveAresti.hpp"
 #include "path_utils/resource_dir.h"	// utility header for SearchAndSetResourceDir
 
 Texture test_texture;
@@ -83,7 +84,12 @@ int main()
 	
 	rlImGuiSetup(true);
 	apply_app_style();
-	ImGui::GetIO().IniFilename = nullptr;
+
+	auto& io = ImGui::GetIO();
+	io.IniFilename = nullptr;
+	io.Fonts->Clear();
+	io.Fonts->AddFontFromMemoryCompressedBase85TTF(Roboto_Medium_compressed_data_base85, 17);
+	io.Fonts->Build();
 
 	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
 	SearchAndSetResourceDir("resources");
