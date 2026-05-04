@@ -47,6 +47,7 @@ set(IMGUI_SOURCES
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
     ${imgui_SOURCE_DIR}/imgui_tables.cpp
     ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 )
 
 # rlImGui sources
@@ -66,6 +67,7 @@ set(NDI_BIN_DIR "${NDI_DIR}/Bin/x64")
 add_executable(${PROJECT_NAME}
     src/main.cpp
     src/embed_roboto_medium.cpp
+    src/embed_dseg14_classic_italic.cpp
     src/imgui_style.cpp
     src/ndi_modal.cpp
     src/ndi_panel.cpp
@@ -73,6 +75,7 @@ add_executable(${PROJECT_NAME}
     src/main_panel.cpp
     src/menu_bar.cpp
     src/ndi_export.cpp
+    src/sequence_list.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
 )

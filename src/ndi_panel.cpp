@@ -5,8 +5,8 @@
 void NDI_panel(ImVec2 size)
 {
 	ImU32 background_color = g_state.NDI_send_ptr == nullptr
-	? IM_COL32(127, 0, 0, 255)
-	: IM_COL32(0, 127, 0, 255);
+		? IM_COL32(127, 0, 0, 255)
+		: IM_COL32(0, 127, 0, 255);
 	ImGui::PushStyleColor(ImGuiCol_ChildBg, background_color);
 	ImGui::BeginChild("ndi_panel", size, ImGuiChildFlags_Borders);
 	static ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit;

@@ -9,7 +9,7 @@ static ImGuiStyle get_imgui_style()
 	style.Colors[ImGuiCol_WindowBg] = ImColor{30, 30, 30, 255};
 	style.Colors[ImGuiCol_ChildBg] = ImColor{15, 15, 15, 255};
 	style.Colors[ImGuiCol_MenuBarBg] = ImColor{60, 60, 60, 255};
-	
+
 	style.FrameRounding = 3;
 	// style.ItemSpacing.y = 6;
 	style.GrabRounding = 4;
@@ -31,5 +31,6 @@ void apply_imgui_app_style()
 	io.IniFilename = nullptr;
 	io.Fonts->Clear();
 	io.Fonts->AddFontFromMemoryCompressedBase85TTF(Roboto_Medium_compressed_data_base85, 17);
+	g_digital_font = io.Fonts->AddFontFromMemoryCompressedBase85TTF(DESG14_Classic_italic_compressed_data_base85, 30);
 	io.Fonts->Build();
 }

@@ -15,6 +15,7 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 #include <Processing.NDI.Lib.h>
 
 LiveArestiState g_state = {};
+ImFont* g_digital_font = nullptr;
 
 static float menu_bar_height = 0.0f;
 static bool should_close = false;
@@ -36,9 +37,11 @@ void imgui_main_app_window()
 	
 	ImGui::Begin("main", nullptr, flags);
 	
-	NDI_modal();
 	menu_bar_height = imgui_menu_bar(should_close, show_demo_window);
-	
+
+	sequence_list_modal();
+	NDI_modal();
+
 	const ImVec2 origin = {ImGui::GetStyle().WindowPadding.x, menu_bar_height + ImGui::GetStyle().WindowPadding.y};
 	const float side_panel_width = viewport->WorkSize.x - 600 - ImGui::GetStyle().WindowPadding.x*2 - ImGui::GetStyle().ItemSpacing.y; 
 	const ImVec2 NDI_panel_size = {side_panel_width, 70};

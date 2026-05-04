@@ -12,7 +12,9 @@ float imgui_menu_bar(bool &should_close, bool &show_demo_window)
 		if (ImGui::BeginMenu("File"))
 		{
 			if (ImGui::MenuItem("Load .seq"))
-				;
+			{
+				g_state.request_open_sequences_modal = true;
+			}
 			if (ImGui::MenuItem("Load raw sequence"))
 				;
 			ImGui::Separator();
