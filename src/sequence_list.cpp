@@ -1,75 +1,38 @@
 #include <filesystem>
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <LiveAresti.hpp>
-#include <misc/cpp/imgui_stdlib.h>
 #include <string>
 
+#include "DirectoryInputText.hpp"
+#include "pugixml.hpp"
+
 namespace fs = std::filesystem;
-
-class PathInputText
-{
-public:
-	// Returns true on value changed
-	bool operator()(const char* label, const char* hint,
-		ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* user_data = nullptr)
-	{
-		std::error_code ec;
-		const bool exists_before_update = std::filesystem::exists(_path, ec);
-		if (!exists_before_update)
-			ImGui::PushStyleColor(ImGuiCol_Text, _error_color);
-
-		const bool changed = ImGui::InputTextWithHint(label, hint, &_utf8_string, flags, callback, user_data);
-
-		ImGui::PopStyleColor(exists_before_update ? 0 : 1);
-		if (!exists_before_update && ImGui::IsItemHovered())
-			ImGui::SetTooltip("Error: %s", ec ? ec.message().c_str() : "Directory does not exist");
-
-		if (changed)
-		{
-			_path = std::filesystem::u8path(_utf8_string);
-		}
-
-		return changed;
-	}
-	ImVec4 get_error_color() const noexcept { return _error_color; }
-	std::filesystem::path const& get_path() const noexcept { return _path; }
-	std::string const& get_utf8_string() const noexcept { return _utf8_string; }
-
-	void set_error_color(ImColor color) noexcept { _error_color = color; }
-	void set_utf8_string(std::string const& utf8_string) noexcept
-	{
-		_utf8_string = utf8_string;
-		_path = std::filesystem::u8path(_utf8_string);
-	}
-	void set_path(std::filesystem::path const& path)
-	{
-		_path = path;
-		_utf8_string = reinterpret_cast<const char*>(path.u8string().c_str());
-	}
-
-private:
-	std::filesystem::path _path;
-	std::string _utf8_string; // Cached UTF8 string
-	ImVec4 _error_color = {0.9f, 0.0f, 0.0f, 1.0f};
-};
 
 static std::vector<SequenceInfo> get_sequences_from_path(fs::path const& path)
 {
 	std::vector<SequenceInfo> sequences;
 
-	if (!fs::exists(path))
+	if (!fs::is_directory(path))
 		return sequences;
 	for (fs::directory_entry const& entry : fs::directory_iterator(path))
 	{
 		if (!entry.exists() || !entry.is_regular_file() || entry.path().extension().string() != ".seq")
 			continue;
+
+		pugi::xml_document doc;
+		pugi::xml_parse_result result = doc.load_file(entry.path().string().c_str());
+		if (!result || doc.child("sequence").empty())
+			continue;
+		pugi::xml_node seq = doc.child("sequence");
 		sequences.emplace_back(SequenceInfo{
-			.file_name = reinterpret_cast<const char*>(entry.path().filename().u8string().c_str()),
-			.pilot_name = "Jean DUPONT",
-			.aircraft_type = "Extra 300SC",
-			.aircraft_reg = "F-ABCD",
-			.category = "Unlimited",
-			.program = "Free Known",
+			.file_name = reinterpret_cast<const char*>(entry.path().stem().u8string().c_str()),
+			.pilot_name = seq.child("pilot").text().as_string("???"),
+			.aircraft_type = seq.child("actype").text().as_string("???"),
+			.aircraft_reg = seq.child("acreg").text().as_string("???"),
+			.category = seq.child("category").text().as_string("???"),
+			.program = seq.child("program").text().as_string("???"),
+			.sequence_text = seq.child("sequence_text").text().as_string(""),
 		});
 	}
 	// NRVO inshallah
@@ -84,11 +47,14 @@ void sequence_list_modal()
 		g_state.request_open_sequences_modal = false;
 	}
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	// Do a manual check for the open popup here instead of using ImGuiCond_Appearing to allow for the dynamic resizing
+	// of the window. Otherwise position is never updated when the window size changes (due to the table filling).
+	if (ImGui::IsPopupOpen("Sequence list"))
+		ImGui::SetNextWindowPos(center, 0, {0.5, 0.5});
+
 	if (ImGui::BeginPopupModal("Sequence list", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
 	{
-		static bool path_exists = false;
-		static PathInputText sequences_path_widget;
+		static widget::DirectoryInputText sequences_path_widget;
 		static std::vector<SequenceInfo> sequences_in_dir;
 
 		// Don't want the length of the path selector to be too short
@@ -97,7 +63,6 @@ void sequence_list_modal()
 			ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft);
 		if (changed)
 		{
-			path_exists = fs::exists(sequences_path_widget.get_path());
 			sequences_in_dir = get_sequences_from_path(sequences_path_widget.get_path());
 		}
 

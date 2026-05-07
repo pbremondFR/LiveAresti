@@ -24,6 +24,7 @@ struct SequenceInfo
 	std::string aircraft_reg;
 	std::string category;
 	std::string program;
+	std::string sequence_text;
 };
 
 struct ImFont;

@@ -32,13 +32,21 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(rlimgui)
 
-#  raylib-extras/extras-c
+# raylib-extras/extras-c
 FetchContent_Declare(
-        raylib_extras_c
-        GIT_REPOSITORY https://github.com/raylib-extras/extras-c.git
-        GIT_TAG main
+    raylib_extras_c
+    GIT_REPOSITORY https://github.com/raylib-extras/extras-c.git
+    GIT_TAG main
 )
 FetchContent_MakeAvailable(raylib_extras_c)
+
+# pugixml
+FetchContent_Declare(
+    pugixml
+    GIT_REPOSITORY https://github.com/zeux/pugixml.git
+    GIT_TAG master
+)
+FetchContent_MakeAvailable(pugixml)
 
 # ImGui sources
 set(IMGUI_SOURCES
@@ -78,6 +86,8 @@ add_executable(${PROJECT_NAME}
     src/sequence_list.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
+    include/LiveAresti.hpp
+    include/DirectoryInputText.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -89,10 +99,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_directories(${PROJECT_NAME} PRIVATE "${NDI_LIB_DIR}")
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib Processing.NDI.Lib.x64)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib Processing.NDI.Lib.x64 pugixml)
 
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${NDI_BIN_DIR}/Processing.NDI.Lib.x64.dll"
-        $<TARGET_FILE_DIR:${PROJECT_NAME}>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${NDI_BIN_DIR}/Processing.NDI.Lib.x64.dll"
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )

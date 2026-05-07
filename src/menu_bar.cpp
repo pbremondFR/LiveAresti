@@ -11,7 +11,7 @@ float imgui_menu_bar(bool &should_close, bool &show_demo_window)
 		menu_bar_height = ImGui::GetWindowSize().y;
 		if (ImGui::BeginMenu("File"))
 		{
-			if (ImGui::MenuItem("Load .seq"))
+			if (ImGui::MenuItem("Set sequences directory..."))
 			{
 				g_state.request_open_sequences_modal = true;
 			}
