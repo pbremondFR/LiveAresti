@@ -9,9 +9,10 @@
 
 namespace fs = std::filesystem;
 
-static std::vector<SequenceInfo> get_sequences_from_path(fs::path const& path)
+// TODO: Load textures from cached/already exported directory, for now nothing
+static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 {
-	std::vector<SequenceInfo> sequences;
+	std::vector<SequenceData> sequences;
 
 	if (!fs::is_directory(path))
 		return sequences;
@@ -25,26 +26,52 @@ static std::vector<SequenceInfo> get_sequences_from_path(fs::path const& path)
 		if (!result || doc.child("sequence").empty())
 			continue;
 		pugi::xml_node seq = doc.child("sequence");
-		sequences.emplace_back(SequenceInfo{
-			.file_name = reinterpret_cast<const char*>(entry.path().stem().u8string().c_str()),
-			.pilot_name = seq.child("pilot").text().as_string("???"),
-			.aircraft_type = seq.child("actype").text().as_string("???"),
-			.aircraft_reg = seq.child("acreg").text().as_string("???"),
-			.category = seq.child("category").text().as_string("???"),
-			.program = seq.child("program").text().as_string("???"),
-			.sequence_text = seq.child("sequence_text").text().as_string(""),
+		sequences.emplace_back(SequenceData{
+			.info = SequenceInfo{
+				.file_name = reinterpret_cast<const char*>(entry.path().stem().u8string().c_str()),
+				.pilot_name = seq.child("pilot").text().as_string("???"),
+				.aircraft_type = seq.child("actype").text().as_string("???"),
+				.aircraft_reg = seq.child("acreg").text().as_string("???"),
+				.category = seq.child("category").text().as_string("???"),
+				.program = seq.child("program").text().as_string("???"),
+				.sequence_text = seq.child("sequence_text").text().as_string(""),
+			},
+			.figures = {},
 		});
 	}
 	// NRVO inshallah
 	return sequences;
 }
 
+static bool sequence_load_button(bool loaded)
+{
+	if (loaded)
+	{
+		ImGui::BeginDisabled();
+		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 200, 0, 255));
+	}
+	bool clicked = ImGui::SmallButton("Load");
+	if (loaded)
+	{
+		ImGui::PopStyleColor();
+		ImGui::EndDisabled();
+	}
+	return clicked;
+}
+
+// TODO: Change the design. There should be a manual reload from the path.
+// Add a button to load images for all programs
+// Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
+// Remove the shitty confusion between WIP sequence list and active sequence list (other window to reorder active
+// list + select active program?)
 void sequence_list_modal()
 {
+	bool rescan_files = false;
 	if (g_state.request_open_sequences_modal)
 	{
 		ImGui::OpenPopup("Sequence list");
 		g_state.request_open_sequences_modal = false;
+		rescan_files = true;
 	}
 	ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 	// Do a manual check for the open popup here instead of using ImGuiCond_Appearing to allow for the dynamic resizing
@@ -55,13 +82,13 @@ void sequence_list_modal()
 	if (ImGui::BeginPopupModal("Sequence list", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
 	{
 		static widget::DirectoryInputText sequences_path_widget;
-		static std::vector<SequenceInfo> sequences_in_dir;
+		static std::vector<SequenceData> sequences_in_dir;
 
 		// Don't want the length of the path selector to be too short
 		ImGui::SetNextItemWidth(500);
-		const bool changed = sequences_path_widget("Sequences path", "e.g. C:\\Documents\\OpenAeroSequences",
+		rescan_files = rescan_files || sequences_path_widget("Sequences path", "e.g. C:\\Documents\\OpenAeroSequences",
 			ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft);
-		if (changed)
+		if (rescan_files)
 		{
 			sequences_in_dir = get_sequences_from_path(sequences_path_widget.get_path());
 		}
@@ -69,8 +96,9 @@ void sequence_list_modal()
 		ImGui::Separator();
 
 		static constexpr ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg;
-		if (ImGui::BeginTable("Sequence list", 7, table_flags, {0, 400}))
+		if (ImGui::BeginTable("Sequence list", 8, table_flags, {0, 400}))
 		{
+			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("File name", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("Pilot", ImGuiTableColumnFlags_WidthFixed);
@@ -82,17 +110,27 @@ void sequence_list_modal()
             ImGui::PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true);
 			for (int i = 0; i < sequences_in_dir.size(); ++i)
 			{
-				SequenceInfo const& seq = sequences_in_dir[i];
+				SequenceInfo const& seq = sequences_in_dir[i].info;
+				const bool selected = i == g_state.current_sequence_idx;
 
 				ImGui::TableNextRow();
 				ImGui::PushID(seq.file_name.c_str());
-				ImGui::TableSetColumnIndex(0); ImGui::Text("%d", i);
-				ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(seq.file_name.c_str());
-				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(seq.pilot_name.c_str());
-				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(seq.program.c_str());
-				ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(seq.category.c_str());
-				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(seq.aircraft_type.c_str());
-				ImGui::TableSetColumnIndex(6); ImGui::Selectable(seq.aircraft_reg.c_str(), false, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_DontClosePopups);
+				ImGui::TableSetColumnIndex(0); sequence_load_button(i % 2);
+				ImGui::TableSetColumnIndex(1); ImGui::Text("%d", i);
+				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(seq.file_name.c_str());
+				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(seq.pilot_name.c_str());
+				ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(seq.program.c_str());
+				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(seq.category.c_str());
+				ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(seq.aircraft_type.c_str());
+				ImGui::TableSetColumnIndex(7);
+				const bool selectable_clicked = ImGui::Selectable(seq.aircraft_reg.c_str(), selected,
+					ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_AllowDoubleClick);
+				// TODO: Probably shit design to have index selection in here (potential mismatch between files shown here
+				// and files in the global state if they've changed in the meantime). Just for testing.
+				if (selectable_clicked && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				{
+					g_state.current_sequence_idx = i;
+				}
 
 				ImGui::PopID();
 				if (ImGui::IsItemActive() && !ImGui::IsItemHovered())

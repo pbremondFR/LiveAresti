@@ -12,15 +12,18 @@ void NDI_panel(ImVec2 size)
 	static ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit;
 	if (ImGui::BeginTable("ndi_props", 2, table_flags))
 	{
+		std::string const& NDI_name = g_state.NDI_name.length() > 0 ? g_state.NDI_name : "None";
+		std::string const& NDI_group = g_state.NDI_group.length() > 0 ? g_state.NDI_group : "None";
+
 		ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
 		ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthStretch);
 			
 		ImGui::TableNextRow();
-		ImGui::TableSetColumnIndex(0); ImGui::Text("Name");
-		ImGui::TableSetColumnIndex(1); ImGui::Text("%s", g_state.NDI_name.c_str());
+		ImGui::TableSetColumnIndex(0); ImGui::Text("NDI Name");
+		ImGui::TableSetColumnIndex(1); ImGui::Text("%s", NDI_name.c_str());
 		ImGui::TableNextRow();
-		ImGui::TableSetColumnIndex(0); ImGui::Text("Group");
-		ImGui::TableSetColumnIndex(1); ImGui::Text("%s", g_state.NDI_group.c_str());
+		ImGui::TableSetColumnIndex(0); ImGui::Text("NDI Group");
+		ImGui::TableSetColumnIndex(1); ImGui::Text("%s", NDI_group.c_str());
 			
 		ImGui::EndTable();
 	}

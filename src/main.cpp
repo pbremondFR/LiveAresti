@@ -32,9 +32,7 @@ void imgui_main_app_window()
 		| ImGuiWindowFlags_NoBringToFrontOnFocus
 		| ImGuiWindowFlags_NoMove
 		| ImGuiWindowFlags_NoScrollWithMouse;
-	// Disable this to avoid highlighting issues with combo search box
-	ImGui::GetIO().ConfigFlags &= ~ImGuiConfigFlags_NavEnableKeyboard;
-	
+
 	ImGui::Begin("main", nullptr, flags);
 	
 	menu_bar_height = imgui_menu_bar(should_close, show_demo_window);

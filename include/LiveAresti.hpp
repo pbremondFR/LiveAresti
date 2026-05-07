@@ -7,10 +7,13 @@
 extern const char Roboto_Medium_compressed_data_base85[148145 + 1];
 extern const char DESG14_Classic_italic_compressed_data_base85[15385+1];
 
+struct ImFont;
+struct ImVec2;
+
 void apply_imgui_app_style();
 bool NDI_modal();
-void side_panel(struct ImVec2 size);
-void NDI_panel(struct ImVec2 size);
+void side_panel(ImVec2 size);
+void NDI_panel(ImVec2 size);
 void main_panel();
 float imgui_menu_bar(bool &should_close, bool &show_demo_window);
 void ndi_export();
@@ -24,16 +27,28 @@ struct SequenceInfo
 	std::string aircraft_reg;
 	std::string category;
 	std::string program;
-	std::string sequence_text;
+	std::string sequence_text; // Probably pretty useless, at least for now
 };
 
-struct ImFont;
+struct Figure
+{
+	Texture texture = {0, 0, 0, 0, 0};
+	int k_factor = 0;
+};
+
+struct SequenceData
+{
+	SequenceInfo info;
+	std::vector<Figure> figures;
+};
+
 extern ImFont* g_digital_font;
 
 struct LiveArestiState
 {
-	std::vector<SequenceInfo> sequence_list;
+	std::vector<SequenceData> sequence_list;
 	std::filesystem::path sequences_dir;
+	size_t current_sequence_idx = 0;
 
 	SequenceInfo sequence_info;
 	std::vector<int> figures = {};
