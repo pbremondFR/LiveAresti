@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <fstream>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <LiveAresti.hpp>
@@ -9,7 +10,83 @@
 
 namespace fs = std::filesystem;
 
-// TODO: Load textures from cached/already exported directory, for now nothing
+/**
+ * Looks at the contents of a .seq file and computes a directory matching the unique contents of the file.
+ * Internally, hashes the file contents and uses that hash for the directory name.
+ *
+ * @param dotseq_file_path .seq file path
+ * @return Filesystem path of directory where sequence images should be exported & fetched.
+ */
+static std::optional<fs::path> get_exported_textures_path(fs::path const& dotseq_file_path)
+{
+	std::ifstream filestream(dotseq_file_path.string());
+	if (!filestream)
+		return std::nullopt;
+	std::stringstream textstream;
+	textstream << filestream.rdbuf();
+	size_t hash = std::hash<std::string>{}(textstream.str());
+
+	fs::path texture_dir = fs::current_path() / std::to_string(hash);
+	return texture_dir;
+}
+
+/**
+ * Look into given directory for exported image files of a given sequence, for both forms B and C. If they're
+ * found, load them into VRAM and return a vector of Figure objects.
+ *
+ * @param textures_path Filesystem path where textures are expected to be present.
+ * @param seq XML <sequence> node object, so we can lookup properties such as K-factors for each figure
+ * @return Vector of figures, all loaded into the GPU. Empty if not found or unexpected error.
+ */
+static std::vector<Figure> fetch_exported_textures_of_sequence(fs::path const& textures_path, pugi::xml_node const& seq)
+{
+	std::vector<Figure> sequences;
+
+	const fs::path form_b_path = textures_path / "Form_B";
+	const fs::path form_c_path = textures_path / "Form_C";
+	if (!fs::is_directory(form_b_path) || !fs::is_directory(form_c_path))
+		return {};
+
+	// Get list of all filenames
+	std::vector<std::string> form_b_filenames;
+	std::vector<std::string> form_c_filenames;
+	for (fs::directory_entry const& entry : fs::directory_iterator(form_b_path))
+		form_b_filenames.push_back(entry.path().string());
+	for (fs::directory_entry const& entry : fs::directory_iterator(form_c_path))
+		form_c_filenames.push_back(entry.path().string());
+	// Should have the strict same amount of files in both forms
+	if (form_b_filenames.size() != form_c_filenames.size())
+		return {};
+
+	// Sort to ensure correct order of textures (files are named in order)
+	std::sort(form_b_filenames.begin(), form_b_filenames.end());
+	std::sort(form_c_filenames.begin(), form_c_filenames.end());
+
+	// Store K-factor of each figure
+	std::vector<int> k_factors;
+	for (auto const& figure : seq.child("figures").children("figure"))
+		k_factors.push_back(figure.child("figk").text().as_int(0));
+	// If amount of figures in .seq differs from amount of images, there's a mismatch between .seq & directory, or
+	// some images are missing from both forms B and C
+	if (k_factors.size() != form_b_filenames.size())
+		return {};
+
+	// Load textures for each texture of forms B and C
+	for (int i = 0; i < form_b_filenames.size(); i++)
+	{
+		Figure figure = {
+			.texture_form_b = LoadTexture(form_b_filenames[i].c_str()),
+			.texture_form_c = LoadTexture(form_c_filenames[i].c_str()),
+			.k_factor = k_factors[i],
+		};
+		// One texture couldn't be loaded into memory, don't want a corrupted image list so discard this program entirely...
+		if (figure.texture_form_b.id == 0 || figure.texture_form_c.id == 0)
+			return {};
+		sequences.push_back(figure);
+	}
+	return sequences;
+}
+
 static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 {
 	std::vector<SequenceData> sequences;
@@ -19,6 +96,10 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 	for (fs::directory_entry const& entry : fs::directory_iterator(path))
 	{
 		if (!entry.exists() || !entry.is_regular_file() || entry.path().extension().string() != ".seq")
+			continue;
+
+		std::optional<fs::path> texture_path = get_exported_textures_path(entry.path());
+		if (!texture_path.has_value())
 			continue;
 
 		pugi::xml_document doc;
@@ -36,7 +117,7 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 				.program = seq.child("program").text().as_string("???"),
 				.sequence_text = seq.child("sequence_text").text().as_string(""),
 			},
-			.figures = {},
+			.figures = fetch_exported_textures_of_sequence(*texture_path, seq),
 		});
 	}
 	// NRVO inshallah
@@ -115,7 +196,7 @@ void sequence_list_modal()
 
 				ImGui::TableNextRow();
 				ImGui::PushID(seq.file_name.c_str());
-				ImGui::TableSetColumnIndex(0); sequence_load_button(i % 2);
+				ImGui::TableSetColumnIndex(0); sequence_load_button(sequences_in_dir[i].figures.size() > 0);
 				ImGui::TableSetColumnIndex(1); ImGui::Text("%d", i);
 				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(seq.file_name.c_str());
 				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(seq.pilot_name.c_str());

@@ -30,9 +30,11 @@ struct SequenceInfo
 	std::string sequence_text; // Probably pretty useless, at least for now
 };
 
+// TODO: RAII wrapper for Texture, otherwise there's a VRAM leak
 struct Figure
 {
-	Texture texture = {0, 0, 0, 0, 0};
+	Texture texture_form_b = {0, 0, 0, 0, 0};
+	Texture texture_form_c = {0, 0, 0, 0, 0};
 	int k_factor = 0;
 };
 
@@ -50,8 +52,6 @@ struct LiveArestiState
 	std::filesystem::path sequences_dir;
 	size_t current_sequence_idx = 0;
 
-	SequenceInfo sequence_info;
-	std::vector<int> figures = {};
 	size_t current_figure_idx = 0;
 	size_t desired_figure_index = 0;
 	

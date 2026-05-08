@@ -9,12 +9,23 @@ void main_panel()
 	ImGui::Button("<< PREV"); ImGui::SameLine(); ImGui::Button("NEXT >>");
 	{
 		ImGui::BeginChild("scrolling", {0, 0}, ImGuiChildFlags_Borders | ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_HorizontalScrollbar);
-		for (int i = 0; i < 99; ++i)
+		if (g_state.current_sequence_idx < g_state.sequence_list.size())
 		{
-			ImGui::PushID(i);
-			ImGui::ImageButton(std::to_string(i).c_str(), ImTextureID(g_state.test_texture.id), {100, 100});
-			ImGui::SameLine();
-			ImGui::PopID();
+			SequenceData const& sequence_data = g_state.sequence_list[g_state.current_sequence_idx];
+			for (int i = 0; i < sequence_data.figures.size(); ++i)
+			{
+				ImGui::PushID(i);
+				ImGui::ImageButton("",
+					ImTextureID(sequence_data.figures[i].texture_form_b.id),
+					{100, 100}
+				);
+				ImGui::SameLine();
+				ImGui::PopID();
+			}
+		}
+		else
+		{
+			ImGui::Text("No program loaded!");
 		}
 		ImGui::EndChild();
 	}
