@@ -55,6 +55,9 @@ static void sequence_info_table(SequenceInfo const& sequence_info)
 		ImGui::TableNextRow();
 		ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("Category");
 		ImGui::TableSetColumnIndex(1); ImGui::TextUnformatted(sequence_info.category.c_str());
+		ImGui::TableNextRow();
+		ImGui::TableSetColumnIndex(0); ImGui::TextUnformatted("# of figures");
+		ImGui::TableSetColumnIndex(1); ImGui::Text("%d", sequence_info.number_of_figures);
 
 		ImGui::EndTable();
 	}

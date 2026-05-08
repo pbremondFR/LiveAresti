@@ -121,6 +121,7 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 		if (!result || doc.child("sequence").empty())
 			continue;
 		pugi::xml_node seq = doc.child("sequence");
+		std::vector<Figure> figures = fetch_exported_textures_of_sequence(texture_dir, seq);
 		sequences.emplace_back(SequenceData{
 			.info = SequenceInfo{
 				.file_name = reinterpret_cast<const char*>(entry.path().stem().u8string().c_str()),
@@ -130,8 +131,9 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 				.category = seq.child("category").text().as_string("???"),
 				.program = seq.child("program").text().as_string("???"),
 				.sequence_text = seq.child("sequence_text").text().as_string(""),
+				.number_of_figures = static_cast<int>(figures.size()),
 			},
-			.figures = fetch_exported_textures_of_sequence(texture_dir, seq),
+			.figures = std::move(figures),
 			.hash = *file_hash,
 		});
 	}

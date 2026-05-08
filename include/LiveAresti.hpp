@@ -31,6 +31,7 @@ struct SequenceInfo
 	std::string category;
 	std::string program;
 	std::string sequence_text; // Probably pretty useless, at least for now
+	int number_of_figures = 0;
 };
 
 struct Figure
