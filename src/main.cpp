@@ -34,10 +34,10 @@ void imgui_main_app_window()
 		| ImGuiWindowFlags_NoScrollWithMouse;
 
 	ImGui::Begin("main", nullptr, flags);
-	
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 6.0f);
 	menu_bar_height = imgui_menu_bar(should_close, show_demo_window);
-
-	sequence_list_modal();
+	// Modals that open within the menu bar.
+	sequence_directory_modal();
 	NDI_modal();
 
 	const ImVec2 origin = {ImGui::GetStyle().WindowPadding.x, menu_bar_height + ImGui::GetStyle().WindowPadding.y};
@@ -67,6 +67,7 @@ void imgui_main_app_window()
 		main_panel();
 	}
 
+	ImGui::PopStyleVar();
 	ImGui::End();
 }
 

@@ -2,7 +2,7 @@
 #include <filesystem>
 #include <string>
 #include <vector>
-#include "raylib.h"
+#include "raylib-cpp.hpp"
 
 extern const char Roboto_Medium_compressed_data_base85[148145 + 1];
 extern const char DESG14_Classic_italic_compressed_data_base85[15385+1];
@@ -17,7 +17,8 @@ void NDI_panel(ImVec2 size);
 void main_panel();
 float imgui_menu_bar(bool &should_close, bool &show_demo_window);
 void ndi_export();
-void sequence_list_modal();
+void sequence_directory_modal();
+void current_sequence_list_modal();
 
 struct SequenceInfo
 {
@@ -30,11 +31,10 @@ struct SequenceInfo
 	std::string sequence_text; // Probably pretty useless, at least for now
 };
 
-// TODO: RAII wrapper for Texture, otherwise there's a VRAM leak
 struct Figure
 {
-	Texture texture_form_b = {0, 0, 0, 0, 0};
-	Texture texture_form_c = {0, 0, 0, 0, 0};
+	raylib::Texture texture_form_b = {};
+	raylib::Texture texture_form_c = {};
 	int k_factor = 0;
 };
 
@@ -44,7 +44,21 @@ struct SequenceData
 	std::vector<Figure> figures;
 };
 
-extern ImFont* g_digital_font;
+// TODO
+enum class SequenceForm
+{
+	B,
+	C,
+};
+
+// TODO
+enum class SomeFuckingState
+{
+	Standby,	// Nothing gets shown on the NDI output
+	Active,		// Currently showing figures
+	Warmup,		// Pilot is warming up before starting the program
+	Break,		// Break in a program
+};
 
 struct LiveArestiState
 {
@@ -69,3 +83,4 @@ struct LiveArestiState
 };
 
 extern LiveArestiState g_state;
+extern ImFont* g_digital_font;

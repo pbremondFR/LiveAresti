@@ -3,6 +3,7 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <LiveAresti.hpp>
+#include <ranges>
 #include <string>
 
 #include "DirectoryInputText.hpp"
@@ -82,7 +83,7 @@ static std::vector<Figure> fetch_exported_textures_of_sequence(fs::path const& t
 		// One texture couldn't be loaded into memory, don't want a corrupted image list so discard this program entirely...
 		if (figure.texture_form_b.id == 0 || figure.texture_form_c.id == 0)
 			return {};
-		sequences.push_back(figure);
+		sequences.push_back(std::move(figure));
 	}
 	return sequences;
 }
@@ -143,9 +144,7 @@ static bool sequence_load_button(bool loaded)
 // TODO: Change the design. There should be a manual reload from the path.
 // Add a button to load images for all programs
 // Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
-// Remove the shitty confusion between WIP sequence list and active sequence list (other window to reorder active
-// list + select active program?)
-void sequence_list_modal()
+void sequence_directory_modal()
 {
 	bool rescan_files = false;
 	if (g_state.request_open_sequences_modal)
@@ -192,7 +191,6 @@ void sequence_list_modal()
 			for (int i = 0; i < sequences_in_dir.size(); ++i)
 			{
 				SequenceInfo const& seq = sequences_in_dir[i].info;
-				const bool selected = i == g_state.current_sequence_idx;
 
 				ImGui::TableNextRow();
 				ImGui::PushID(seq.file_name.c_str());
@@ -203,26 +201,8 @@ void sequence_list_modal()
 				ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(seq.program.c_str());
 				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(seq.category.c_str());
 				ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(seq.aircraft_type.c_str());
-				ImGui::TableSetColumnIndex(7);
-				const bool selectable_clicked = ImGui::Selectable(seq.aircraft_reg.c_str(), selected,
-					ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_DontClosePopups | ImGuiSelectableFlags_AllowDoubleClick);
-				// TODO: Probably shit design to have index selection in here (potential mismatch between files shown here
-				// and files in the global state if they've changed in the meantime). Just for testing.
-				if (selectable_clicked && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
-				{
-					g_state.current_sequence_idx = i;
-				}
-
+				ImGui::TableSetColumnIndex(7); ImGui::TextUnformatted(seq.aircraft_reg.c_str());
 				ImGui::PopID();
-				if (ImGui::IsItemActive() && !ImGui::IsItemHovered())
-				{
-					int n_next = i + (ImGui::GetMouseDragDelta(0).y < 0.f ? -1 : 1);
-					if (n_next >= 0 && n_next < sequences_in_dir.size())
-					{
-						std::swap(sequences_in_dir[i], sequences_in_dir[n_next]);
-						ImGui::ResetMouseDragDelta();
-					}
-				}
 			}
             ImGui::PopItemFlag();
 			ImGui::EndTable();
@@ -232,7 +212,11 @@ void sequence_list_modal()
 
 		if (ImGui::Button("Save"))
 		{
-			g_state.sequence_list = sequences_in_dir;
+			std::erase_if(sequences_in_dir, [](SequenceData const& seq) { return seq.figures.empty(); });
+			g_state.sequence_list = std::move(sequences_in_dir);
+			// Reset vector after std::move, just to be sure it's valid if it doesn't get re-computed (it should,
+			// because next time popup is open it will rescan files, but better safe than sorry)
+			sequences_in_dir.clear();
 			g_state.sequences_dir = sequences_path_widget.get_path();
 			ImGui::CloseCurrentPopup();
 		}
