@@ -75,6 +75,7 @@ int main()
 {
 	// Tell the window to use vsync and work on high DPI displays
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI | FLAG_WINDOW_RESIZABLE);
+	SetTraceLogLevel(LOG_WARNING);
 
 	// Create the window and OpenGL context
 	InitWindow(1000, 1000, "LiveAresti");

@@ -11,6 +11,17 @@
 
 namespace fs = std::filesystem;
 
+static std::optional<size_t> get_file_hash(fs::path const& dotseq_file_path)
+{
+	std::ifstream filestream(dotseq_file_path.string());
+	if (!filestream)
+		return std::nullopt;
+	std::stringstream textstream;
+	textstream << filestream.rdbuf();
+	size_t hash = std::hash<std::string>{}(textstream.str());
+	return hash;
+}
+
 /**
  * Looks at the contents of a .seq file and computes a directory matching the unique contents of the file.
  * Internally, hashes the file contents and uses that hash for the directory name.
@@ -20,15 +31,16 @@ namespace fs = std::filesystem;
  */
 static std::optional<fs::path> get_exported_textures_path(fs::path const& dotseq_file_path)
 {
-	std::ifstream filestream(dotseq_file_path.string());
-	if (!filestream)
+	std::optional<size_t> hash = get_file_hash(dotseq_file_path);
+	if (!hash.has_value())
 		return std::nullopt;
-	std::stringstream textstream;
-	textstream << filestream.rdbuf();
-	size_t hash = std::hash<std::string>{}(textstream.str());
-
-	fs::path texture_dir = fs::current_path() / std::to_string(hash);
+	fs::path texture_dir = fs::current_path().parent_path() / "exported_images" / std::to_string(*hash);
 	return texture_dir;
+}
+
+static fs::path get_exported_textures_path(size_t file_hash)
+{
+	return fs::current_path().parent_path() / "exported_images" / std::to_string(file_hash);
 }
 
 /**
@@ -99,9 +111,10 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 		if (!entry.exists() || !entry.is_regular_file() || entry.path().extension().string() != ".seq")
 			continue;
 
-		std::optional<fs::path> texture_path = get_exported_textures_path(entry.path());
-		if (!texture_path.has_value())
+		std::optional<size_t> file_hash = get_file_hash(entry.path());
+		if (!file_hash.has_value())
 			continue;
+		fs::path texture_dir = fs::current_path().parent_path() / "exported_images" / std::to_string(*file_hash);
 
 		pugi::xml_document doc;
 		pugi::xml_parse_result result = doc.load_file(entry.path().string().c_str());
@@ -118,7 +131,8 @@ static std::vector<SequenceData> get_sequences_from_path(fs::path const& path)
 				.program = seq.child("program").text().as_string("???"),
 				.sequence_text = seq.child("sequence_text").text().as_string(""),
 			},
-			.figures = fetch_exported_textures_of_sequence(*texture_path, seq),
+			.figures = fetch_exported_textures_of_sequence(texture_dir, seq),
+			.hash = *file_hash,
 		});
 	}
 	// NRVO inshallah
@@ -141,11 +155,27 @@ static bool sequence_load_button(bool loaded)
 	return clicked;
 }
 
+// Pretty shit way of doing things rn
+static int exporter_thread_routine(fs::path seq_file, fs::path const& output_dir, std::atomic_bool& thread_ended)
+{
+	std::string command = std::format("node \"{}\" --file=\"{}\" --outputdir=\"{}\"",
+		"E:\\Documents\\Code\\ArestiExporter\\export_program.js",
+		seq_file.string(),
+		output_dir.string()
+	);
+	puts(command.c_str());
+	int retcode = std::system(command.c_str());
+	return retcode;
+}
+
 // TODO: Change the design. There should be a manual reload from the path.
 // Add a button to load images for all programs
 // Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
+// Load images to GPU only after hitting save? Avoids lag when opening/closing window.
 void sequence_directory_modal()
 {
+	// One exporter thread ended, time to refresh the file list
+	std::atomic_bool exporter_thread_ended = false;
 	bool rescan_files = false;
 	if (g_state.request_open_sequences_modal)
 	{
@@ -190,18 +220,26 @@ void sequence_directory_modal()
             ImGui::PushItemFlag(ImGuiItemFlags_AllowDuplicateId, true);
 			for (int i = 0; i < sequences_in_dir.size(); ++i)
 			{
-				SequenceInfo const& seq = sequences_in_dir[i].info;
+				SequenceData const& sequence_data = sequences_in_dir[i];
+				SequenceInfo const& sequence_info = sequences_in_dir[i].info;
 
 				ImGui::TableNextRow();
-				ImGui::PushID(seq.file_name.c_str());
-				ImGui::TableSetColumnIndex(0); sequence_load_button(sequences_in_dir[i].figures.size() > 0);
+				ImGui::PushID(sequence_info.file_name.c_str());
+				ImGui::TableSetColumnIndex(0); bool do_load = sequence_load_button(sequences_in_dir[i].figures.size() > 0);
+				if (do_load)
+				{
+					fs::path file_path = sequences_path_widget.get_path() / (sequence_info.file_name + ".seq");
+					auto thread = std::jthread(&exporter_thread_routine,
+						file_path, get_exported_textures_path(sequence_data.hash), std::ref(exporter_thread_ended));
+					thread.detach();
+				}
 				ImGui::TableSetColumnIndex(1); ImGui::Text("%d", i);
-				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(seq.file_name.c_str());
-				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(seq.pilot_name.c_str());
-				ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(seq.program.c_str());
-				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(seq.category.c_str());
-				ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(seq.aircraft_type.c_str());
-				ImGui::TableSetColumnIndex(7); ImGui::TextUnformatted(seq.aircraft_reg.c_str());
+				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(sequence_info.file_name.c_str());
+				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(sequence_info.pilot_name.c_str());
+				ImGui::TableSetColumnIndex(4); ImGui::TextUnformatted(sequence_info.program.c_str());
+				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(sequence_info.category.c_str());
+				ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(sequence_info.aircraft_type.c_str());
+				ImGui::TableSetColumnIndex(7); ImGui::TextUnformatted(sequence_info.aircraft_reg.c_str());
 				ImGui::PopID();
 			}
             ImGui::PopItemFlag();

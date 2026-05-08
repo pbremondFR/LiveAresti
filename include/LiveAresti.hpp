@@ -1,6 +1,8 @@
 ﻿#pragma once
 #include <filesystem>
 #include <string>
+#include <thread>
+#include <unordered_map>
 #include <vector>
 #include "raylib-cpp.hpp"
 
@@ -40,8 +42,9 @@ struct Figure
 
 struct SequenceData
 {
-	SequenceInfo info;
-	std::vector<Figure> figures;
+	SequenceInfo info = {};
+	std::vector<Figure> figures = {};
+	size_t hash = 0;
 };
 
 // TODO
@@ -76,7 +79,7 @@ struct LiveArestiState
 	
 	bool request_open_ndi_modal = false;
 	bool request_open_sequences_modal = false;
-	
+
 	// testing/debugging/wip shit
 	Texture test_texture;
 	RenderTexture2D test_output_target;
