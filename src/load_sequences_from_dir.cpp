@@ -160,13 +160,14 @@ static bool sequence_load_button(bool loaded)
 // Pretty shit way of doing things rn
 static int exporter_thread_routine(fs::path seq_file, fs::path const& output_dir, std::atomic_bool& thread_ended)
 {
-	std::string command = std::format("node \"{}\" --file=\"{}\" --outputdir=\"{}\"",
-		"E:\\Documents\\Code\\ArestiExporter\\export_program.js",
+	const fs::path exe_path = fs::path(GetApplicationDirectory()) / "ArestiExporter" / "ArestiExporter.exe";
+	std::string command = std::format(R"({} --file="{}" --outputdir="{}")",
+		exe_path.string(),
 		seq_file.string(),
 		output_dir.string()
 	);
 	puts(command.c_str());
-	int retcode = std::system(command.c_str());
+	const int retcode = std::system(command.c_str());
 	return retcode;
 }
 

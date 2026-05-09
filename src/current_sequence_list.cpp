@@ -4,10 +4,7 @@
 
 void current_sequence_list_modal()
 {
-	// Do a manual check for the open popup here instead of using ImGuiCond_Appearing to allow for the dynamic resizing
-	// of the window. Otherwise position is never updated when the window size changes (due to the table filling).
-	if (ImGui::IsPopupOpen("Current sequence list"))
-		ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), 0, {0.5, 0.5});
+	ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, {0.5, 0.5});
 
 	if (ImGui::BeginPopupModal("Current sequence list", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove))
 	{

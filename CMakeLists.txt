@@ -44,17 +44,26 @@ FetchContent_MakeAvailable(raylib_extras_c)
 FetchContent_Declare(
     pugixml
     GIT_REPOSITORY https://github.com/zeux/pugixml.git
-    GIT_TAG master
+    GIT_TAG v1.15
 )
 FetchContent_MakeAvailable(pugixml)
 
 # raylib-cpp: C++ wrapper types for RayLib
 FetchContent_Declare(
-        raylib_cpp
-        GIT_REPOSITORY https://github.com/RobLoach/raylib-cpp.git
-        GIT_TAG v6.0.0
+    raylib_cpp
+    GIT_REPOSITORY https://github.com/RobLoach/raylib-cpp.git
+    GIT_TAG v6.0.0
 )
 FetchContent_MakeAvailable(raylib_cpp)
+
+FetchContent_Declare(
+    ArestiExporter
+    URL https://github.com/pbremondFR/ArestiExporter/releases/download/v1.0.0/ArestiExporter-win-x64.zip
+    # cmake -E sha256sum arestiexporter-win-x64.zip
+    URL_HASH SHA256=40a92736da8a852b7b8bfd3684bcac45c9adde4dd1db14a6df4d5c0d5b588018
+)
+FetchContent_MakeAvailable(ArestiExporter)
+add_compile_definitions(ARESTIEXPORTER_EXE="ArestiExporter\\ArestiExporter.exe")
 
 # ImGui sources
 set(IMGUI_SOURCES
@@ -114,4 +123,19 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${NDI_BIN_DIR}/Processing.NDI.Lib.x64.dll"
     $<TARGET_FILE_DIR:${PROJECT_NAME}>
+)
+
+# Copy the ArestiExporter release files
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    "${arestiexporter_SOURCE_DIR}/ArestiExporter.exe"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/ArestiExporter/ArestiExporter.exe"
+
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    "${arestiexporter_SOURCE_DIR}/firefox"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/ArestiExporter/firefox"
+
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+    "${arestiexporter_SOURCE_DIR}/OpenAero"
+    "$<TARGET_FILE_DIR:${PROJECT_NAME}>/ArestiExporter/OpenAero"
 )
