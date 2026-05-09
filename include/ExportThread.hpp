@@ -21,7 +21,7 @@ public:
 	bool running() const noexcept { return state == State::Running; }
 	/// Finished, whether successful or not.
 	bool finished() const noexcept { return state == State::Failure || state == State::Success; }
-	std::jthread launch(std::filesystem::path const& file_path, std::filesystem::path const& textures_path);
+	std::optional<std::jthread> launch(std::filesystem::path const& file_path, std::filesystem::path const& textures_path);
 
 private:
 	void routine(std::filesystem::path seq_file, std::filesystem::path output_dir);

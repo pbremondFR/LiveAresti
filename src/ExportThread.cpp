@@ -11,9 +11,12 @@ extern "C" {
 
 namespace fs = std::filesystem;
 
-std::jthread ExportThread::launch(fs::path const& file_path, fs::path const& textures_path)
+std::optional<std::jthread> ExportThread::launch(fs::path const& file_path, fs::path const& textures_path)
 {
-	return std::jthread(&ExportThread::routine, this, file_path, textures_path);
+	if (!running())
+		return std::jthread(&ExportThread::routine, this, file_path, textures_path);
+	else
+		return std::nullopt;
 }
 
 // Thanks guys: https://stackoverflow.com/questions/1802471/suppress-console-when-calling-system-in-c

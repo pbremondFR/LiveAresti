@@ -46,13 +46,13 @@ struct SequenceTemporaryData
 	size_t hash = 0;
 
 	/// Whether files from this sequence are already cached (found in the directory of get_exported_textures_path)
-	[[nodiscard]] bool files_cached() const noexcept { return !figure_filenames.empty(); }
+	[[nodiscard]] bool are_files_cached() const noexcept { return !figure_filenames.empty(); }
 
 	/// Loads all figures in VRAM and returns newly created SequenceData object. If one or more file loads fails,
 	/// returns nullopt.
 	[[nodiscard]] std::optional<SequenceData> to_sequence_data() const
 	{
-		if (!files_cached())
+		if (!are_files_cached())
 			return std::nullopt;
 
 		std::vector<Figure> transformed_figures;
@@ -263,9 +263,10 @@ static bool erase_successful_finished_threads()
 	return num_threads_finished > 0;
 }
 
-// TODO: Change the design. There should be a manual reload from the path.
-// Add a button to load images for all programs
-// Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
+// TODO: Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
+// TODO: Differential move based on sequence hash (+ file name?) to only save sequences that are newly added
+//  (avoids long freeze every time). Not very important as we're unlikely to do anything else than one big load-all.
+// TODO: Progress bar for save? Means saving on other thread & swapping vectors once it's all loaded
 void sequence_directory_modal()
 {
 	// One exporter thread ended, time to refresh the file list
@@ -292,9 +293,12 @@ void sequence_directory_modal()
 		if (erase_successful_finished_threads())
 			rescan_files = true;
 
+		if (ImGui::Button("Reload"))
+			rescan_files = true;
+		ImGui::SameLine();
 		// Don't want the length of the path selector to be too short
-		ImGui::SetNextItemWidth(500);
-		rescan_files = rescan_files || sequences_path_widget("Sequences path", "e.g. C:\\Documents\\OpenAeroSequences",
+		ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
+		rescan_files = rescan_files || sequences_path_widget("##sequences_path", "Sequences path",
 			ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft);
 		if (rescan_files)
 		{
@@ -330,13 +334,15 @@ void sequence_directory_modal()
 				ImGui::TableNextRow();
 				ImGui::PushID(sequence_info.file_name.c_str());
 				ImGui::TableSetColumnIndex(0);
-				if (sequence_load_button(sequences_in_dir[i].files_cached(), thread_state))
+				if (sequence_load_button(sequence_data.are_files_cached(), thread_state))
 				{
 					// Launch thread to export images with ArestiExporter
 					const fs::path file_path = sequences_path_widget.get_path() / (sequence_info.file_name + ".seq");
 					const fs::path textures_path = get_exported_textures_path(sequence_data.hash);
-					g_state.export_threads[sequence_data.hash].launch(file_path, textures_path).detach();
+					g_state.export_threads[sequence_data.hash].launch(file_path, textures_path)->detach();
 				}
+				// Disable text for rest of the row so it's grey, but we can still click the button
+				ImGui::BeginDisabled(!sequence_data.are_files_cached());
 				ImGui::TableSetColumnIndex(1); ImGui::Text("%d", i);
 				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(sequence_info.file_name.c_str());
 				ImGui::TableSetColumnIndex(3); ImGui::TextUnformatted(sequence_info.pilot_name.c_str());
@@ -344,6 +350,7 @@ void sequence_directory_modal()
 				ImGui::TableSetColumnIndex(5); ImGui::TextUnformatted(sequence_info.category.c_str());
 				ImGui::TableSetColumnIndex(6); ImGui::TextUnformatted(sequence_info.aircraft_type.c_str());
 				ImGui::TableSetColumnIndex(7); ImGui::TextUnformatted(sequence_info.aircraft_reg.c_str());
+				ImGui::EndDisabled();
 				ImGui::PopID();
 			}
             ImGui::PopItemFlag();
@@ -382,6 +389,21 @@ void sequence_directory_modal()
 			sequences_path_widget.set_path(g_state.sequences_dir);
 			sequences_in_dir = get_sequences_from_path(g_state.sequences_dir);
 			ImGui::CloseCurrentPopup();
+		}
+		ImGui::SameLine(); ImGui::SeparatorEx(ImGuiSeparatorFlags_Vertical); ImGui::SameLine();
+		if (ImGui::Button("Load all sequences"))
+		{
+			for (SequenceTemporaryData const& sequence : sequences_in_dir)
+			{
+				if (sequence.are_files_cached())
+					continue;
+				const fs::path file_path = sequences_path_widget.get_path() / (sequence.info.file_name + ".seq");
+				const fs::path textures_path = get_exported_textures_path(sequence.hash);
+				if (auto thread = g_state.export_threads[sequence.hash].launch(file_path, textures_path))
+				{
+					thread->detach();
+				}
+			}
 		}
 		ImGui::EndPopup();
 	}
