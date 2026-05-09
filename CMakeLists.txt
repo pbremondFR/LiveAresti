@@ -116,6 +116,10 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     include
 )
 
+# Link to Windows subsystem instead of Console to avoid have a cmd open at program start
+# and set the entry to main() instead of WinMain() which we'd need to manually define.
+# https://stackoverflow.com/questions/22934206/what-is-the-difference-between-main-and-maincrtstartup
+target_link_options(${PROJECT_NAME} PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
 target_link_directories(${PROJECT_NAME} PRIVATE "${NDI_LIB_DIR}")
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib raylib_cpp Processing.NDI.Lib.x64 pugixml)
 
