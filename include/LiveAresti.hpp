@@ -1,16 +1,17 @@
 ﻿#pragma once
 #include <filesystem>
+#include <map>
 #include <string>
-#include <thread>
-#include <unordered_map>
 #include <vector>
-#include "raylib-cpp.hpp"
 
-extern const char Roboto_Medium_compressed_data_base85[148145 + 1];
-extern const char DESG14_Classic_italic_compressed_data_base85[15385+1];
+#include "ExportThread.hpp"
+#include "raylib-cpp.hpp"
 
 struct ImFont;
 struct ImVec2;
+
+extern const char Roboto_Medium_compressed_data_base85[148145 + 1];
+extern const char DESG14_Classic_italic_compressed_data_base85[15385+1];
 
 void apply_imgui_app_style();
 bool NDI_modal();
@@ -45,7 +46,7 @@ struct SequenceData
 {
 	SequenceInfo info = {};
 	std::vector<Figure> figures = {};
-	size_t hash = 0;
+	size_t hash = 0; /// Hash of the .seq file to uniquely identify a sequence
 };
 
 // TODO
@@ -80,6 +81,8 @@ struct LiveArestiState
 	
 	bool request_open_ndi_modal = false;
 	bool request_open_sequences_modal = false;
+
+	std::map<size_t, ExportThread> export_threads;
 
 	// testing/debugging/wip shit
 	Texture test_texture;

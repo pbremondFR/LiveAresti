@@ -1,12 +1,16 @@
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <LiveAresti.hpp>
 #include <ranges>
 #include <string>
+#include <thread>
 
 #include "DirectoryInputText.hpp"
+#include "ExportThread.hpp"
 #include "pugixml.hpp"
 
 namespace fs = std::filesystem;
@@ -41,11 +45,14 @@ struct SequenceTemporaryData
 	std::vector<FigureFilenames> figure_filenames = {};
 	size_t hash = 0;
 
+	/// Whether files from this sequence are already cached (found in the directory of get_exported_textures_path)
+	[[nodiscard]] bool files_cached() const noexcept { return !figure_filenames.empty(); }
+
 	/// Loads all figures in VRAM and returns newly created SequenceData object. If one or more file loads fails,
 	/// returns nullopt.
 	[[nodiscard]] std::optional<SequenceData> to_sequence_data() const
 	{
-		if (figure_filenames.empty())
+		if (!files_cached())
 			return std::nullopt;
 
 		std::vector<Figure> transformed_figures;
@@ -91,6 +98,12 @@ static std::optional<fs::path> get_exported_textures_path(fs::path const& dotseq
 	return texture_dir;
 }
 
+/**
+ * Returns the directory where sequence images are located based on .seq file hash
+ *
+ * @param file_hash Hash of .seq file
+ * @return Filesystem path of directory where sequence images should be exported & fetched
+ */
 static fs::path get_exported_textures_path(size_t file_hash)
 {
 	return fs::current_path().parent_path() / "exported_images" / std::to_string(file_hash);
@@ -153,13 +166,18 @@ static std::vector<FigureFilenames> fetch_exported_textures_of_sequence(fs::path
 	return sequences;
 }
 
-static std::vector<SequenceTemporaryData> get_sequences_from_path(fs::path const& path)
+/**
+ * Looks into the given directory and returns a list of all found OpenAero sequences.
+ * @param directory Folder in which to scan for .seq files
+ * @return vector of sequence temporary data (contains texture filenames instead of loaded textures).
+ */
+static std::vector<SequenceTemporaryData> get_sequences_from_path(fs::path const& directory)
 {
 	std::vector<SequenceTemporaryData> sequences;
 
-	if (!fs::is_directory(path))
+	if (!fs::is_directory(directory))
 		return sequences;
-	for (fs::directory_entry const& entry : fs::directory_iterator(path))
+	for (fs::directory_entry const& entry : fs::directory_iterator(directory))
 	{
 		if (!entry.exists() || !entry.is_regular_file() || entry.path().extension().string() != ".seq")
 			continue;
@@ -194,45 +212,66 @@ static std::vector<SequenceTemporaryData> get_sequences_from_path(fs::path const
 	return sequences;
 }
 
-static bool sequence_load_button(bool loaded)
+/// ImGui SmallButton that reflects a sequence's load status (as reflected by ExportThread::State)
+static bool sequence_load_button(bool has_cached_textures, ExportThread::State thread_state)
 {
-	if (loaded)
+	static constexpr ImU32 good = IM_COL32(0, 200, 0, 255);
+	static constexpr ImU32 bad = IM_COL32(200, 0, 0, 255);
+
+	const char* button_text = "";
+	if (has_cached_textures)
+		thread_state = ExportThread::State::Success;
+	switch (thread_state)
 	{
-		ImGui::BeginDisabled();
-		ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(0, 200, 0, 255));
+		case ExportThread::State::Failure:
+			button_text = "Failed";	break;
+		case ExportThread::State::Running:
+			button_text = "...";	break;
+		case ExportThread::State::NotLaunched:
+			button_text = "Load";	break;
+		case ExportThread::State::Success:
+			button_text = "Loaded";	break;
 	}
-	bool clicked = ImGui::SmallButton("Load");
-	if (loaded)
-	{
+
+	ImGui::BeginDisabled(has_cached_textures || thread_state == ExportThread::State::Running);
+	if (has_cached_textures)
+		ImGui::PushStyleColor(ImGuiCol_Button, good);
+	else if (thread_state == ExportThread::State::Failure)
+		ImGui::PushStyleColor(ImGuiCol_Button, bad);
+
+	ImGui::PushStyleVarY(ImGuiStyleVar_FramePadding, 0.0f);
+	// ImGui::SmallButton, but with custom size
+	const bool clicked = ImGui::ButtonEx(button_text, {60, 0}, ImGuiButtonFlags_AlignTextBaseLine);
+	ImGui::PopStyleVar();
+
+	if (has_cached_textures || thread_state == ExportThread::State::Failure)
 		ImGui::PopStyleColor();
-		ImGui::EndDisabled();
-	}
+	ImGui::EndDisabled();
+
 	return clicked;
 }
 
-// Pretty shit way of doing things rn
-static int exporter_thread_routine(fs::path seq_file, fs::path const& output_dir, std::atomic_bool& thread_ended)
+/// Erases successful finished threads from g_state.export_threads. Returns true if one or more thread was erased.
+static bool erase_successful_finished_threads()
 {
-	const fs::path exe_path = fs::path(GetApplicationDirectory()) / "ArestiExporter" / "ArestiExporter.exe";
-	std::string command = std::format(R"({} --file="{}" --outputdir="{}")",
-		exe_path.string(),
-		seq_file.string(),
-		output_dir.string()
-	);
-	puts(command.c_str());
-	const int retcode = std::system(command.c_str());
-	return retcode;
+	const size_t num_threads_finished = std::erase_if(g_state.export_threads,
+	[](std::pair<const size_t, ExportThread> const& item)
+	{
+		auto const& thread = item.second;
+		return thread.state.load() == ExportThread::State::Success;
+	});
+	return num_threads_finished > 0;
 }
 
 // TODO: Change the design. There should be a manual reload from the path.
 // Add a button to load images for all programs
 // Add a progress bar for loading (long time if script needs to be ran!!!). Other thread?
-// Load images to GPU only after hitting save? Avoids lag when opening/closing window.
 void sequence_directory_modal()
 {
 	// One exporter thread ended, time to refresh the file list
-	std::atomic_bool exporter_thread_ended = false;
 	bool rescan_files = false;
+	// Do this shit instead of normal OpenPopup usage because the button is located inside a menu of the main menu bar,
+	// where the code below would never get drawn, because the menu would close on the frame when the button is pressed.
 	if (g_state.request_open_sequences_modal)
 	{
 		ImGui::OpenPopup("Sequence list");
@@ -249,6 +288,9 @@ void sequence_directory_modal()
 	{
 		static widget::DirectoryInputText sequences_path_widget;
 		static std::vector<SequenceTemporaryData> sequences_in_dir;
+
+		if (erase_successful_finished_threads())
+			rescan_files = true;
 
 		// Don't want the length of the path selector to be too short
 		ImGui::SetNextItemWidth(500);
@@ -279,15 +321,21 @@ void sequence_directory_modal()
 				SequenceTemporaryData const& sequence_data = sequences_in_dir[i];
 				SequenceInfo const& sequence_info = sequences_in_dir[i].info;
 
+				// Check if a thread is associated with this sequence
+				auto thread_it = g_state.export_threads.find(sequence_data.hash);
+				ExportThread::State thread_state = thread_it != g_state.export_threads.end()
+					? thread_it->second.state.load()
+					: ExportThread::State::NotLaunched;
+
 				ImGui::TableNextRow();
 				ImGui::PushID(sequence_info.file_name.c_str());
-				ImGui::TableSetColumnIndex(0); bool do_load = sequence_load_button(sequences_in_dir[i].figure_filenames.size() > 0);
-				if (do_load)
+				ImGui::TableSetColumnIndex(0);
+				if (sequence_load_button(sequences_in_dir[i].files_cached(), thread_state))
 				{
-					fs::path file_path = sequences_path_widget.get_path() / (sequence_info.file_name + ".seq");
-					auto thread = std::jthread(&exporter_thread_routine,
-						file_path, get_exported_textures_path(sequence_data.hash), std::ref(exporter_thread_ended));
-					thread.detach();
+					// Launch thread to export images with ArestiExporter
+					const fs::path file_path = sequences_path_widget.get_path() / (sequence_info.file_name + ".seq");
+					const fs::path textures_path = get_exported_textures_path(sequence_data.hash);
+					g_state.export_threads[sequence_data.hash].launch(file_path, textures_path).detach();
 				}
 				ImGui::TableSetColumnIndex(1); ImGui::Text("%d", i);
 				ImGui::TableSetColumnIndex(2); ImGui::TextUnformatted(sequence_info.file_name.c_str());

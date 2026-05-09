@@ -102,10 +102,12 @@ add_executable(${PROJECT_NAME}
     src/ndi_export.cpp
     src/load_sequences_from_dir.cpp
     src/current_sequence_list.cpp
+    src/ExportThread.cpp
     ${IMGUI_SOURCES}
     ${RLIMGUI_SOURCES}
     include/LiveAresti.hpp
     include/DirectoryInputText.hpp
+    include/ExportThread.hpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
