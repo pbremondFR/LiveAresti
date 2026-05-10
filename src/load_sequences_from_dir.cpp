@@ -310,6 +310,7 @@ void sequence_directory_modal()
 		static constexpr ImGuiTableFlags table_flags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg;
 		if (ImGui::BeginTable("Sequence list", 8, table_flags, {0, 400}))
 		{
+			ImGui::TableSetupScrollFreeze(0, 1); // Top row is sticky (always visible)
 			ImGui::TableSetupColumn(nullptr, ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableSetupColumn("File name", ImGuiTableColumnFlags_WidthFixed);
