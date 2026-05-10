@@ -58,9 +58,9 @@ FetchContent_MakeAvailable(raylib_cpp)
 
 FetchContent_Declare(
     ArestiExporter
-    URL https://github.com/pbremondFR/ArestiExporter/releases/download/v1.0.0/ArestiExporter-win-x64.zip
+    URL https://github.com/pbremondFR/ArestiExporter/releases/download/v1.0.1/ArestiExporter-win-x64.zip
     # cmake -E sha256sum arestiexporter-win-x64.zip
-    URL_HASH SHA256=40a92736da8a852b7b8bfd3684bcac45c9adde4dd1db14a6df4d5c0d5b588018
+    URL_HASH SHA256=3c6db09c3cbe754d0f197425d8f86d896934bc4c0524c5c69ed7bdfe9634c679
 )
 FetchContent_MakeAvailable(ArestiExporter)
 add_compile_definitions(ARESTIEXPORTER_EXE="ArestiExporter\\ArestiExporter.exe")
